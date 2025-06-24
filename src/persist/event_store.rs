@@ -1,13 +1,14 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::marker::PhantomData;
-
-use serde_json::Value;
 
 use crate::persist::serialized_event::{deserialize_events, serialize_events};
 use crate::persist::{
     EventStoreAggregateContext, EventUpcaster, PersistedEventRepository, SerializedEvent,
 };
 use crate::{Aggregate, AggregateError, EventEnvelope, EventStore};
+use serde_json::Value;
+use tracing::info;
 
 #[derive(PartialEq)]
 enum SourceOfTruth {
@@ -179,7 +180,7 @@ where
 impl<R, A> EventStore<A> for PersistedEventStore<R, A>
 where
     R: PersistedEventRepository,
-    A: Aggregate + Send + Sync,
+    A: Aggregate + Send + Sync + Debug,
 {
     type AC = EventStoreAggregateContext<A>;
 
@@ -188,6 +189,10 @@ where
         aggregate_id: &str,
     ) -> Result<Vec<EventEnvelope<A>>, AggregateError<A::Error>> {
         let serialized_events = self.repo.get_events::<A>(aggregate_id).await?;
+        info!(
+            "load_events(): Loaded events from persisted events: {:?}",
+            serialized_events
+        );
         Ok(deserialize_events(
             serialized_events,
             &self.event_upcasters,
@@ -208,6 +213,7 @@ where
                     None => EventStoreAggregateContext::context_for(aggregate_id, false),
                 }
             };
+        info!("load_aggregate(): Context: {:?}", context);
         let events_to_apply = match self.storage {
             SourceOfTruth::EventStore => self.load_events(aggregate_id).await?,
             SourceOfTruth::Snapshot(_) => {
@@ -221,6 +227,7 @@ where
                 vec![]
             }
         };
+        info!("load_aggregate(): events_to_apply: {:?}", events_to_apply);
         for envelope in events_to_apply {
             context.current_sequence = envelope.sequence;
             let event = envelope.payload;
@@ -249,7 +256,9 @@ where
                 _ => Self::update_snapshot_with_events(&events, context, commit_snapshot_to_event)?,
             }
         };
+        info!("commit(): events: {:?}", events);
         let wrapped_events = Self::wrap_events(&aggregate_id, last_sequence, events, metadata);
+        info!("commit(): wrapped events: {:?}", wrapped_events);
         let serialized_events: Vec<SerializedEvent> = serialize_events(&wrapped_events)?;
         let snapshot_update = snapshot_update.map(|s| (aggregate_id, s.0, s.1));
         self.repo
@@ -261,7 +270,7 @@ where
 
 impl<R, A> PersistedEventStore<R, A>
 where
-    A: Aggregate + Send + Sync,
+    A: Aggregate + Send + Sync + Debug,
     R: PersistedEventRepository,
 {
     fn update_snapshot_with_events(

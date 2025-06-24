@@ -1,7 +1,7 @@
-use std::convert::TryFrom;
-
 use crate::{Aggregate, DomainEvent, EventEnvelope};
 use serde_json::Value;
+use std::convert::TryFrom;
+use std::fmt::Debug;
 
 use crate::persist::{EventStoreAggregateContext, EventUpcaster, PersistenceError};
 
@@ -114,7 +114,7 @@ pub struct SerializedSnapshot {
     pub current_snapshot: usize,
 }
 
-impl<A: Aggregate> TryFrom<SerializedSnapshot> for EventStoreAggregateContext<A> {
+impl<A: Aggregate + Debug> TryFrom<SerializedSnapshot> for EventStoreAggregateContext<A> {
     type Error = PersistenceError;
 
     fn try_from(snapshot: SerializedSnapshot) -> Result<Self, Self::Error> {
