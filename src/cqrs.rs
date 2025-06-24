@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-
+use std::fmt::Debug;
 use crate::query::Query;
 use crate::store::EventStore;
 use crate::Aggregate;
@@ -21,7 +21,7 @@ use crate::{AggregateContext, AggregateError};
 ///
 pub struct CqrsFramework<A, ES>
 where
-    A: Aggregate,
+    A: Aggregate + Debug,
     ES: EventStore<A>,
 {
     store: ES,
@@ -31,7 +31,7 @@ where
 
 impl<A, ES> CqrsFramework<A, ES>
 where
-    A: Aggregate,
+    A: Aggregate + Debug,
     ES: EventStore<A>,
 {
     /// Creates new framework for dispatching commands using the provided elements.
