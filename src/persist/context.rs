@@ -1,8 +1,10 @@
 use crate::{Aggregate, AggregateContext};
+use std::fmt::Debug;
 
 /// Holds context for the pure event store implementation PostgresStore.
 /// This is only used internally within the `EventStore`.
-pub struct EventStoreAggregateContext<A: Aggregate> {
+#[derive(Debug)]
+pub struct EventStoreAggregateContext<A: Aggregate + Debug> {
     /// The aggregate ID of the aggregate instance that has been loaded.
     pub aggregate_id: String,
     /// The current state of the aggregate instance.
@@ -13,7 +15,7 @@ pub struct EventStoreAggregateContext<A: Aggregate> {
     pub current_snapshot: Option<usize>,
 }
 
-impl<A: Aggregate> EventStoreAggregateContext<A> {
+impl<A: Aggregate + Debug> EventStoreAggregateContext<A> {
     pub(crate) fn context_for(aggregate_id: &str, _is_event_source: bool) -> Self {
         Self {
             aggregate_id: aggregate_id.to_string(),
@@ -24,7 +26,7 @@ impl<A: Aggregate> EventStoreAggregateContext<A> {
     }
 }
 
-impl<A: Aggregate> AggregateContext<A> for EventStoreAggregateContext<A> {
+impl<A: Aggregate + Debug> AggregateContext<A> for EventStoreAggregateContext<A> {
     fn aggregate(&self) -> &A {
         &self.aggregate
     }
