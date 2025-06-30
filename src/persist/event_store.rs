@@ -243,12 +243,20 @@ where
         context: EventStoreAggregateContext<A>,
         metadata: HashMap<String, String>,
     ) -> Result<Vec<EventEnvelope<A>>, AggregateError<A::Error>> {
+        let before = get_memory_usage_kb();
         let aggregate_id = context.aggregate_id.clone();
+        let after = get_memory_usage_kb();
+        info!("Memory used 1: {} KB", after.saturating_sub(before));
         let last_sequence = context.current_sequence;
 
+        let before = get_memory_usage_kb();
         let commit_snapshot_to_event = self
             .storage
             .commit_snapshot_with_addl_events(context.current_sequence, events.len());
+        let after = get_memory_usage_kb();
+        info!("Memory used 2: {} KB", after.saturating_sub(before));
+
+        let before = get_memory_usage_kb();
         let snapshot_update: Option<(Value, usize)> = if commit_snapshot_to_event == 0 {
             None
         } else {
@@ -257,16 +265,36 @@ where
                 _ => Self::update_snapshot_with_events(&events, context, commit_snapshot_to_event)?,
             }
         };
-        info!("commit(): events: {:?}", events);
+        let after = get_memory_usage_kb();
+        info!("Memory used 3: {} KB", after.saturating_sub(before));
+
+        let before = get_memory_usage_kb();
         let wrapped_events = self.wrap_events(&aggregate_id, last_sequence, events, metadata);
-        info!("commit(): wrapped events: {:?}", wrapped_events);
+        let after = get_memory_usage_kb();
+        info!("Memory used 4: {} KB", after.saturating_sub(before));
+
+        let before = get_memory_usage_kb();
         let serialized_events: Vec<SerializedEvent> = serialize_events(&wrapped_events)?;
+        let after = get_memory_usage_kb();
+        info!("Memory used 5: {} KB", after.saturating_sub(before));
+
+        let before = get_memory_usage_kb();
         let snapshot_update = snapshot_update.map(|s| (aggregate_id, s.0, s.1));
         self.repo
             .persist::<A>(&serialized_events, snapshot_update)
             .await?;
+        let after = get_memory_usage_kb();
+        info!("Memory used 6: {} KB", after.saturating_sub(before));
         Ok(wrapped_events)
     }
+}
+
+use procfs::process::Process;
+
+fn get_memory_usage_kb() -> u64 {
+    let pid = std::process::id();
+    let process = Process::new(pid.try_into().unwrap()).unwrap();
+    process.stat().unwrap().rss * 4 // pages × 4 KB on most systems
 }
 
 impl<R, A> PersistedEventStore<R, A>

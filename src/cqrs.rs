@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
 use crate::query::Query;
 use crate::store::EventStore;
 use crate::Aggregate;
 use crate::{AggregateContext, AggregateError};
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 /// This is the base framework for applying commands to produce events.
 ///
