@@ -214,7 +214,8 @@ where
                     None => EventStoreAggregateContext::context_for(aggregate_id, false),
                 }
             };
-        info!("load_aggregate(): Context: {:?}", context);
+        info!("load_aggregate(): Context: aggregate_id: {:?}. aggregate: {:?} current_sequence: {}. current_snapshot: {:?}", context.aggregate_id, context.aggregate, context.current_sequence,
+        context.current_snapshot);
         let events_to_apply = match self.storage {
             SourceOfTruth::EventStore => self.load_events(aggregate_id).await?,
             SourceOfTruth::Snapshot(_) => {
@@ -228,8 +229,13 @@ where
                 vec![]
             }
         };
-        info!("load_aggregate(): events_to_apply: {:?}", events_to_apply);
+
         for envelope in events_to_apply {
+            info!(
+                "load_aggregate(): event_to_apply: aggregate_id: {}, sequence: {}, metadata: {:?}",
+                envelope.aggregate_id, envelope.sequence, envelope.metadata
+            );
+
             context.current_sequence = envelope.sequence;
             let event = envelope.payload;
             context.aggregate.apply(event);
